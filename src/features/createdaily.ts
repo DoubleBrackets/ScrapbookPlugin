@@ -14,7 +14,19 @@ export default class CreateDailyScrapbook {
 			"Create Daily Scrapbook",
 			(evt: MouseEvent) => {
 				try {
-					this.CreateScrapbookDirectory(evt);
+					this.createDailyScrapbook();
+				} catch (e) {
+					new Notice("Error creating daily note: " + e);
+				}
+			}
+		);
+
+		const ribbonIconEl2 = plugin.addRibbonIcon(
+			"camera",
+			"Create Daily Scrapbook2",
+			(evt: MouseEvent) => {
+				try {
+					this.createDailyScrapbook(true);
 				} catch (e) {
 					new Notice("Error creating daily note: " + e);
 				}
@@ -22,7 +34,8 @@ export default class CreateDailyScrapbook {
 		);
 	}
 
-	async CreateScrapbookDirectory(mouseEvent: MouseEvent) {
+	async createDailyScrapbook(pullImages: boolean = false) {
+		// Date time parsing
 		let vault: Vault = this.plugin.app.vault;
 		let date = new Intl.DateTimeFormat().format(new Date());
 		console.log(date);
@@ -31,63 +44,104 @@ export default class CreateDailyScrapbook {
 		let monthName = toMonthName(parseInt(month) - 1);
 		let day = date.split("/")[1];
 
-		// Create opinionated directory structure
-		let directory = `Scrapbook/${year}/${month} ${monthName}/${day}`;
+		let scrapbookDirectory = `Scrapbook/${year}/${month} ${monthName}/${day}`;
 
-		if (vault.getFolderByPath(directory) === null) {
-			console.log("Creating directory: " + directory);
-			await vault.createFolder(directory);
-		}
+		await this.createScrapbookDirectory(vault, scrapbookDirectory);
 
-		// read content from the journal template
 		let templatePath = this.plugin.options.dailyNoteTemplate + ".md";
-		console.log("Template path: " + templatePath);
-		let templateFile: TFile = vault.getAbstractFileByPath(
+		let templateText = await this.getDailyJournalTemplateText(
+			vault,
 			templatePath
-		) as TFile;
+		);
 
-		let templateContent = "";
-		if (templateFile !== null) {
-			templateContent = await vault.cachedRead(templateFile);
+		let processedTemplateText = this.processTemplateText(
+			templateText,
+			year,
+			month,
+			day
+		);
 
-			if (month.length === 1) {
-				month = `0${month}`;
-			}
-			let dateProperty = ` ${year}-${month}-${day}`;
-
-			let templateDatePropertyName =
-				this.plugin.options.templateDatePropertyName;
-
-			// regex search for the date property and all the text up until a newline
-			let datePropertyRegex = new RegExp(
-				`${templateDatePropertyName}:.*\n`,
-				"g"
-			);
-
-			templateContent.replace(
-				datePropertyRegex,
-				`${templateDatePropertyName}: ${dateProperty}\n`
-			);
-		}
-
-		// Create journal markdown file
-		let filename = `Daily Scrapbook`;
-		let mdFilePath = `${directory}/${filename}.md`;
-
-		if (vault.getAbstractFileByPath(mdFilePath) !== null) {
-			vault.create(mdFilePath, templateContent);
-		}
+		let mdFilePath = `${scrapbookDirectory}/Scrapbook Entry.md`;
+		this.createScrapbookMarkdownFile(
+			vault,
+			processedTemplateText,
+			mdFilePath
+		);
 
 		let leaf = this.plugin.app.workspace.getMostRecentLeaf();
 
 		if (leaf !== null) {
 			let file = vault.getAbstractFileByPath(mdFilePath) as TFile;
+			console.log(leaf);
+
 			leaf.openFile(file);
+		}
+
+		if (pullImages) {
+			this.pullImagesFromPhotos(vault, scrapbookDirectory);
 		}
 	}
 
-	getDailyJournalTemplateText(templateContent: string, date: string): string {
-		return templateContent.replace("{{date}}", date);
+	async pullImagesFromPhotos(vault: Vault, directory: string) {}
+
+	async createScrapbookDirectory(vault: Vault, path: string) {
+		if (vault.getFolderByPath(path) === null) {
+			console.log("Creating directory: " + path);
+			await vault.createFolder(path);
+		}
+	}
+
+	async createScrapbookMarkdownFile(
+		vault: Vault,
+		content: string,
+		filepath: string
+	) {
+		let filename = `Daily Scrapbook`;
+
+		if (vault.getAbstractFileByPath(filepath) === null) {
+			vault.create(filepath, content);
+		}
+	}
+
+	async getDailyJournalTemplateText(
+		vault: Vault,
+		templateFilepath: string
+	): Promise<string> {
+		// read content from the journal template
+		console.log("Template path: " + templateFilepath);
+		let templateFile: TFile = vault.getAbstractFileByPath(
+			templateFilepath
+		) as TFile;
+
+		return await vault.read(templateFile);
+	}
+
+	processTemplateText(
+		templateText: string,
+		year: string,
+		month: string,
+		day: string
+	): string {
+		if (month.length === 1) {
+			month = `0${month}`;
+		}
+		let dateProperty = ` ${year}-${month}-${day}`;
+
+		let templateDatePropertyName =
+			this.plugin.options.templateDatePropertyName;
+
+		// regex search for the date property and all the text up until a newline
+		let datePropertyRegex = new RegExp(
+			`${templateDatePropertyName}:.*\n`,
+			"g"
+		);
+
+		templateText.replace(
+			datePropertyRegex,
+			`${templateDatePropertyName}: ${dateProperty}\n`
+		);
+
+		return templateText;
 	}
 
 	onunload(plugin: Plugin): void {}
