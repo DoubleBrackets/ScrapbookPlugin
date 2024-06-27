@@ -8,7 +8,7 @@ import {
 	requestUrl,
 } from "obsidian";
 import ScrapbookPlugin from "src/main";
-import { toMonthName } from "src/lib/utils";
+import { toDateProperty, toMonthName } from "src/lib/dateformatter";
 import axios from "axios";
 import {
 	GooglePhotosDate,
@@ -17,38 +17,29 @@ import {
 	dateToGoogleDateFilter,
 } from "src/photos-api/photosapi";
 import { log } from "console";
+import {
+	getScrapbookDailyDirectoryPath,
+	getScrapbookDailyNotePath,
+} from "src/lib/scrapbookPaths";
+import { setNoteProperty } from "src/lib/noteUtils";
 
-export default class CreateDailyScrapbook {
+/**
+ * Handles creation of scrapbook dailies
+ */
+export default class ScrapbookDailyCreator {
 	private plugin: ScrapbookPlugin;
 
 	constructor(plugin: ScrapbookPlugin) {
 		this.plugin = plugin;
-
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = plugin.addRibbonIcon(
-			"camera",
-			"Create Daily Scrapbook",
-			(evt: MouseEvent) => {
-				try {
-					this.createDailyScrapbook(true);
-				} catch (e) {
-					new Notice("Error creating daily note: " + e);
-				}
-			}
-		);
 	}
 
-	async createDailyScrapbook(pullImages: boolean = false) {
-		// Date time parsing
+	async createDailyScrapbook(
+		date: Date,
+		pullImages: boolean = false,
+		pullFocus: boolean = false
+	) {
 		let vault: Vault = this.plugin.app.vault;
-		let date = new Intl.DateTimeFormat().format(new Date());
-		console.log(date);
-		let year = date.split("/")[2];
-		let month = date.split("/")[0];
-		let monthName = toMonthName(parseInt(month) - 1);
-		let day = date.split("/")[1];
-
-		let scrapbookDirectory = `Scrapbook/${year}/${month} ${monthName}/${day}`;
+		let scrapbookDirectory = getScrapbookDailyDirectoryPath(date);
 
 		await this.createScrapbookDirectory(vault, scrapbookDirectory);
 
@@ -60,36 +51,40 @@ export default class CreateDailyScrapbook {
 
 		let processedTemplateText = this.processTemplateText(
 			templateText,
-			year,
-			month,
-			day
+			date
 		);
 
-		let mdFilePath = `${scrapbookDirectory}/Scrapbook Entry.md`;
+		let mdFilePath = getScrapbookDailyNotePath(date);
+
 		this.createScrapbookMarkdownFile(
 			vault,
 			processedTemplateText,
 			mdFilePath
 		);
 
-		let leaf = this.plugin.app.workspace.getMostRecentLeaf();
-
-		if (leaf !== null) {
-			let file = vault.getAbstractFileByPath(mdFilePath) as TFile;
-			console.log(leaf);
-
-			leaf.openFile(file);
+		if (pullImages) {
+			this.pullImagesFromPhotos(date, vault, scrapbookDirectory);
 		}
 
-		if (pullImages) {
-			this.pullImagesFromPhotos(vault, scrapbookDirectory);
+		if (pullFocus) {
+			this.createLeafForDaily(date, vault, mdFilePath);
 		}
 	}
 
-	async pullImagesFromPhotos(vault: Vault, directory: string) {
+	async createLeafForDaily(date: Date, vault: Vault, filepath: string) {
+		// Pull up focus
+		let leaf = this.plugin.app.workspace.getMostRecentLeaf();
+
+		if (leaf !== null) {
+			let file = vault.getAbstractFileByPath(filepath) as TFile;
+			leaf.openFile(file);
+		}
+	}
+
+	async pullImagesFromPhotos(date: Date, vault: Vault, directory: string) {
 		let photosApi = this.plugin.photosApi;
 		let dateFilter: GooglePhotosDateFilter = {
-			dates: [dateToGoogleDateFilter(new Date())],
+			dates: [dateToGoogleDateFilter(date)],
 		};
 
 		let searchParams: GooglePhotosSearchParams = {
@@ -98,7 +93,10 @@ export default class CreateDailyScrapbook {
 		let localSearchParams = Object.assign({}, searchParams);
 		let photos = await photosApi.mediaItemsSearch(localSearchParams);
 
-		console.log(photos);
+		if (!photos.mediaItems) {
+			new Notice("No photos found for " + date.toDateString());
+			return;
+		}
 
 		for (let mediaItem of photos.mediaItems) {
 			let mediaUrl = mediaItem.baseUrl;
@@ -125,8 +123,6 @@ export default class CreateDailyScrapbook {
 		content: string,
 		filepath: string
 	) {
-		let filename = `Daily Scrapbook`;
-
 		if (vault.getAbstractFileByPath(filepath) === null) {
 			vault.create(filepath, content);
 		}
@@ -145,29 +141,14 @@ export default class CreateDailyScrapbook {
 		return await vault.read(templateFile);
 	}
 
-	processTemplateText(
-		templateText: string,
-		year: string,
-		month: string,
-		day: string
-	): string {
-		if (month.length === 1) {
-			month = `0${month}`;
-		}
-		let dateProperty = ` ${year}-${month}-${day}`;
-
+	processTemplateText(templateText: string, date: Date): string {
 		let templateDatePropertyName =
 			this.plugin.options.templateDatePropertyName;
 
-		// regex search for the date property and all the text up until a newline
-		let datePropertyRegex = new RegExp(
-			`${templateDatePropertyName}:.*\n`,
-			"g"
-		);
-
-		templateText.replace(
-			datePropertyRegex,
-			`${templateDatePropertyName}: ${dateProperty}\n`
+		setNoteProperty(
+			templateText,
+			templateDatePropertyName,
+			toDateProperty(date)
 		);
 
 		return templateText;

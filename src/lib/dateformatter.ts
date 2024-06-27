@@ -35,3 +35,16 @@ export function toMonthName(month: number): string {
 export function monthAbbreviation(month: number): string {
 	return monthAbbreviations[month];
 }
+
+/**
+ * Convert a date to a string format compatible with Obsidian note properties
+ * @param date
+ * @returns
+ */
+export function toDateProperty(date: Date): string {
+	let year = date.getFullYear();
+	let month = date.getMonth() + 1;
+	let day = date.getDate();
+
+	return `${year}-${month}-${day}`;
+}

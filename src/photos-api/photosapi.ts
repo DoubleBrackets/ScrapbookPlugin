@@ -77,13 +77,8 @@ export default class PhotosApi {
 		endpoint: string,
 		params: GooglePhotosSearchParams = {}
 	): Promise<object> {
-		// Check to make sure we have a valid access token
+		this.plugin.oauth.authenticateIfNeeded();
 		const s = this.plugin.options;
-		if (!s.accessToken || Date.now() > s.expires) {
-			if (!(await this.plugin.oauth.authenticate())) {
-				throw new Error("Unauthenticated");
-			}
-		}
 
 		// Make the authenticated request to Photos API
 		const resp = await fetch(

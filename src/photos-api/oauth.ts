@@ -16,7 +16,24 @@ export default class OAuth2 {
 		this.redirectUrl = `http://localhost:${this.port}/google-photos`;
 	}
 
+	async authenticateIfNeeded() {
+		// Check to make sure we have a valid access token
+		const s = this.plugin.options;
+		if (!this.isAuthenticated()) {
+			if (!(await this.plugin.oauth.authenticate())) {
+				throw new Error("Unauthenticated");
+			}
+		}
+	}
+
+	isAuthenticated(): boolean {
+		const s = this.plugin.options;
+		return Boolean(s.accessToken && Date.now() < s.expires);
+	}
+
 	async authenticate(): Promise<boolean> {
+		console.log("Attempting to authenticate");
+
 		const s = this.plugin.options;
 
 		// First attempt to use a stored refresh token
