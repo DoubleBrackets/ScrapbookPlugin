@@ -69,6 +69,7 @@ export default class ScrapbookDailyCreator {
 		);
 
 		if (pullImages) {
+
 			this.pullImagesFromPhotos(date, vault, scrapbookDirectory);
 		}
 
@@ -108,9 +109,15 @@ export default class ScrapbookDailyCreator {
 		for (let mediaItem of photos.mediaItems) {
 			let mediaUrl = mediaItem.baseUrl;
 
+
 			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
 			if (mediaItem.mimeType.startsWith("video")) {
 				mediaUrl = mediaUrl + "=dv";
+			}
+
+			// Include metadata
+			if (mediaItem.mimeType.startsWith("image")) {
+				mediaUrl = mediaUrl + "=d";
 			}
 
 			console.log("Downloading media: " + mediaUrl);
@@ -193,5 +200,5 @@ export default class ScrapbookDailyCreator {
 		return templateText;
 	}
 
-	onunload(plugin: Plugin): void {}
+	onunload(plugin: Plugin): void { }
 }

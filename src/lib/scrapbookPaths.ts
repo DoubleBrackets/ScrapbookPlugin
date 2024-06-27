@@ -1,4 +1,4 @@
-import { toMonthName } from "./dateformatter";
+import { toDateProperty, toMonthName } from "./dateformatter";
 
 /**
  * Opinionated scrapbook daily directory path
@@ -11,8 +11,9 @@ export function getScrapbookDailyDirectoryPath(date: Date): string {
 	let month = date.getMonth() + 1;
 	let day = date.getDate();
 	let monthName = toMonthName(month - 1);
+	let datePrefix = toDateProperty(date);
 
-	let scrapbookDirectory = `Scrapbook/${year}/${month} ${monthName}/${day}`;
+	let scrapbookDirectory = `Scrapbook/${year}/${month} ${monthName}/${datePrefix} Scrap Day`;
 
 	return scrapbookDirectory;
 }
@@ -20,9 +21,9 @@ export function getScrapbookDailyDirectoryPath(date: Date): string {
 /**
  * Get path to scrapbook dailies note
  */
-export function getScrapbookDailyNotePath(prefix: string, date: Date): string {
+export function getScrapbookDailyNotePath(prefix: string, date: Date, name: string = ""): string {
 	let directoryPath = getScrapbookDailyDirectoryPath(date);
-	let notePath = `${directoryPath}/${prefix} - .md`;
+	let notePath = `${directoryPath}/${prefix} -${name}.md`;
 
 	return notePath;
 }

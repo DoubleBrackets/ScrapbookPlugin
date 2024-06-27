@@ -4,6 +4,7 @@ import ScrapbookDailyCreator from "./scrapbook-dailies/dailyCreator";
 import OAuth from "./photos-api/oauth";
 import PhotosApi from "./photos-api/photosapi";
 import { CreateDailyModal } from "./scrapbook-dailies/createDailyModal";
+import { convertOldJournal } from "./converter";
 
 export default class ScrapbookPlugin extends Plugin {
 	public options: ISettings;

@@ -118,7 +118,7 @@ export class CreateDailyModal extends Modal {
 			this.endDate = new Date(this.startDate);
 		}
 
-		let limit = 100;
+		let limit = 1000;
 
 		// Create dailies for each day in the range
 		let currentDate = this.startDate;
