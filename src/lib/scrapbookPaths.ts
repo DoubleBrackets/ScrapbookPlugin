@@ -26,3 +26,15 @@ export function getScrapbookDailyNotePath(date: Date): string {
 
 	return notePath;
 }
+
+/**
+ * Name of media artifact
+ */
+export function getMediaArtifactName(
+	defaultName: string,
+	fileType: string,
+	index: string
+): string {
+	let extension = defaultName.split(".").last();
+	return `scrap-${fileType}-${index}.${extension}`;
+}

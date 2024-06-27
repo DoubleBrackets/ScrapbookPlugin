@@ -11,6 +11,7 @@ export interface ISettings {
 	accessToken: string;
 	refreshToken: string;
 	expires: number;
+	port: number;
 }
 
 export const DEFAULT_SETTINGS: ISettings = {
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: ISettings = {
 	accessToken: "",
 	refreshToken: "",
 	expires: 0,
+	port: 51894,
 };
 
 export class ScrapbookSettingsTab extends PluginSettingTab {
@@ -86,5 +88,21 @@ export class ScrapbookSettingsTab extends PluginSettingTab {
 					await this.plugin.writeOptions();
 				});
 			});
+
+		new Setting(containerEl)
+			.setName("Photos API Local Port")
+			.setDesc("Local http server port for OAuth redirect")
+			.addText((text) => {
+				text.setPlaceholder("Port number");
+				text.setValue(this.plugin.options.port.toString());
+				text.onChange(async (value) => {
+					this.plugin.options.port = parseInt(value);
+					await this.plugin.writeOptions();
+				});
+			});
+
+		containerEl.createEl("h2", {
+			text: "For Oauth on cloud console, use Web Application, and http://localhost:{port number}/google-photos for the redirect URI",
+		});
 	}
 }

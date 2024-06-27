@@ -5,15 +5,11 @@ import { Platform, Notice } from "obsidian";
 // Need to create a local http server to handle the OAuth2 redirect
 export default class OAuth2 {
 	plugin: ScrapbookPlugin;
-	port = 51894;
 	redirectUrl: string;
 	httpServer: http.Server;
 
 	constructor(plugin: ScrapbookPlugin) {
 		this.plugin = plugin;
-
-		// Needs to match the redirect URL in the Google Cloud Console
-		this.redirectUrl = `http://localhost:${this.port}/google-photos`;
 	}
 
 	async authenticateIfNeeded() {
@@ -33,6 +29,9 @@ export default class OAuth2 {
 
 	async authenticate(): Promise<boolean> {
 		console.log("Attempting to authenticate");
+
+		// Needs to match the redirect URL in the Google Cloud Console
+		this.redirectUrl = `http://localhost:${this.plugin.options.port}/google-photos`;
 
 		const s = this.plugin.options;
 
@@ -79,7 +78,7 @@ export default class OAuth2 {
 				.createServer(async (req, res) => {
 					this.handleAuthResponse(req, res);
 				})
-				.listen(this.port, () => {
+				.listen(this.plugin.options.port, () => {
 					// Start the auth process when the server is ready
 					this.startAuthProcess();
 				});

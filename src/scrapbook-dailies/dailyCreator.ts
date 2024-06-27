@@ -18,6 +18,7 @@ import {
 } from "src/photos-api/photosapi";
 import { log } from "console";
 import {
+	getMediaArtifactName,
 	getScrapbookDailyDirectoryPath,
 	getScrapbookDailyNotePath,
 } from "src/lib/scrapbookPaths";
@@ -98,16 +99,29 @@ export default class ScrapbookDailyCreator {
 			return;
 		}
 
+		let index = 0;
 		for (let mediaItem of photos.mediaItems) {
 			let mediaUrl = mediaItem.baseUrl;
+
+			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
+			if (mediaItem.mimeType.startsWith("video")) {
+				mediaUrl = mediaUrl + "=dv";
+			}
+
+			console.log("Downloading media: " + mediaUrl);
 
 			let mediaResponse = await requestUrl({ url: mediaUrl });
 
 			let mediaBlob = mediaResponse.arrayBuffer;
-			let mediaFileName = mediaItem.filename;
+			let mediaFileName = getMediaArtifactName(
+				mediaItem.filename,
+				mediaItem.mimeType.split("/")[0],
+				index.toString()
+			);
 			let mediaFilePath = `${directory}/${mediaFileName}`;
 
 			await vault.createBinary(mediaFilePath, mediaBlob);
+			index++;
 		}
 	}
 
