@@ -20,9 +20,9 @@ export function getScrapbookDailyDirectoryPath(date: Date): string {
 /**
  * Get path to scrapbook dailies note
  */
-export function getScrapbookDailyNotePath(date: Date): string {
+export function getScrapbookDailyNotePath(prefix: string, date: Date): string {
 	let directoryPath = getScrapbookDailyDirectoryPath(date);
-	let notePath = `${directoryPath}/Daily Entry.md`;
+	let notePath = `${directoryPath}/${prefix} - .md`;
 
 	return notePath;
 }

@@ -3,7 +3,11 @@ import ScrapbookPlugin from "./main";
 
 export interface ISettings {
 	dailyNoteTemplate: string;
-	templateDatePropertyName: string;
+	dailyNoteNamePrefix: string;
+
+	dailyDatePropertyName: string;
+	dailyDateCreatedPropertyName: string;
+	prefacePropertyName: string;
 
 	// Photos API
 	clientId: string;
@@ -16,7 +20,11 @@ export interface ISettings {
 
 export const DEFAULT_SETTINGS: ISettings = {
 	dailyNoteTemplate: "default",
-	templateDatePropertyName: "date",
+	dailyNoteNamePrefix: "Scrap Page",
+
+	dailyDatePropertyName: "date",
+	dailyDateCreatedPropertyName: "date-created",
+	prefacePropertyName: "preface",
 
 	clientId: "",
 	clientSecret: "",
@@ -53,14 +61,55 @@ export class ScrapbookSettingsTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Daily Scrapbook Template Date Property")
+			.setName("Daily Scrapbook Note Name Prefix")
+			.setDesc("Prefix for daily scrapbook note names")
+			.addText((text) => {
+				text.inputEl.type = "text";
+				text.setPlaceholder("Prefix");
+				text.setValue(this.plugin.options.dailyNoteNamePrefix);
+				text.onChange(async (value) => {
+					this.plugin.options.dailyNoteNamePrefix = value;
+					await this.plugin.writeOptions();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Scrap Daily Note Date Property Name")
 			.setDesc("Property name to autofill with current date")
 			.addText((text) => {
 				text.inputEl.type = "text";
 				text.setPlaceholder("Property name");
-				text.setValue(this.plugin.options.templateDatePropertyName);
+				text.setValue(this.plugin.options.dailyDatePropertyName);
 				text.onChange(async (value) => {
-					this.plugin.options.templateDatePropertyName = value;
+					this.plugin.options.dailyDatePropertyName = value;
+					await this.plugin.writeOptions();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Scrap Daily Note Date Created Property Name")
+			.setDesc(
+				"Property name to autofill with the date the note was created"
+			)
+			.addText((text) => {
+				text.inputEl.type = "text";
+				text.setPlaceholder("Property name");
+				text.setValue(this.plugin.options.dailyDateCreatedPropertyName);
+				text.onChange(async (value) => {
+					this.plugin.options.dailyDateCreatedPropertyName = value;
+					await this.plugin.writeOptions();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Scrap Daily Note Preface Property Name")
+			.setDesc("Property name to autofill with the preface")
+			.addText((text) => {
+				text.inputEl.type = "text";
+				text.setPlaceholder("Property name");
+				text.setValue(this.plugin.options.prefacePropertyName);
+				text.onChange(async (value) => {
+					this.plugin.options.prefacePropertyName = value;
 					await this.plugin.writeOptions();
 				});
 			});

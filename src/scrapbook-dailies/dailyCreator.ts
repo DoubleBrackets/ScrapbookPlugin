@@ -36,6 +36,7 @@ export default class ScrapbookDailyCreator {
 
 	async createDailyScrapbook(
 		date: Date,
+		preface: string,
 		pullImages: boolean = false,
 		pullFocus: boolean = false
 	) {
@@ -52,10 +53,14 @@ export default class ScrapbookDailyCreator {
 
 		let processedTemplateText = this.processTemplateText(
 			templateText,
+			preface,
 			date
 		);
 
-		let mdFilePath = getScrapbookDailyNotePath(date);
+		let mdFilePath = getScrapbookDailyNotePath(
+			this.plugin.options.dailyNoteNamePrefix,
+			date
+		);
 
 		this.createScrapbookMarkdownFile(
 			vault,
@@ -74,7 +79,7 @@ export default class ScrapbookDailyCreator {
 
 	async createLeafForDaily(date: Date, vault: Vault, filepath: string) {
 		// Pull up focus
-		let leaf = this.plugin.app.workspace.getMostRecentLeaf();
+		let leaf = this.plugin.app.workspace.getLeaf("tab");
 
 		if (leaf !== null) {
 			let file = vault.getAbstractFileByPath(filepath) as TFile;
@@ -155,14 +160,34 @@ export default class ScrapbookDailyCreator {
 		return await vault.read(templateFile);
 	}
 
-	processTemplateText(templateText: string, date: Date): string {
-		let templateDatePropertyName =
-			this.plugin.options.templateDatePropertyName;
+	processTemplateText(
+		templateText: string,
+		preface: string,
+		date: Date
+	): string {
+		let datePropertyName = this.plugin.options.dailyDatePropertyName;
 
-		setNoteProperty(
+		let dateCreatedPropertyName =
+			this.plugin.options.dailyDateCreatedPropertyName;
+
+		let prefacedPropertyName = this.plugin.options.prefacePropertyName;
+
+		templateText = setNoteProperty(
 			templateText,
-			templateDatePropertyName,
+			datePropertyName,
 			toDateProperty(date)
+		);
+
+		templateText = setNoteProperty(
+			templateText,
+			dateCreatedPropertyName,
+			toDateProperty(new Date())
+		);
+
+		templateText = setNoteProperty(
+			templateText,
+			prefacedPropertyName,
+			preface
 		);
 
 		return templateText;

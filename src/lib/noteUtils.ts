@@ -8,11 +8,9 @@ export function setNoteProperty(
 	fileContent: string,
 	propertyName: string,
 	value: string
-) {
+): string {
 	// regex search for the date property and all the text up until a newline
 	let propRegex = new RegExp(`${propertyName}:.*\n`, "g");
 
-	fileContent.replace(propRegex, `${propertyName}: ${value}\n`);
-
-	return fileContent;
+	return fileContent.replace(propRegex, `${propertyName}: ${value}\n`);
 }

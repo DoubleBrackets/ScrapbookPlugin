@@ -8,9 +8,15 @@ import ScrapbookDailyCreator from "./dailyCreator";
 export class CreateDailyModal extends Modal {
 	plugin: ScrapbookPlugin;
 
+	// Creation wizard settings
 	pullImages: boolean = true;
 	startDate: Date = new Date();
 	endDate: Date = new Date();
+	createDateRange: boolean = false;
+	preface: string = "No preface (ㆆ _ ㆆ)";
+
+	// Elements
+	private endDateSetting: Setting;
 
 	constructor(app: App, plugin: ScrapbookPlugin) {
 		super(app);
@@ -30,6 +36,16 @@ export class CreateDailyModal extends Modal {
 				});
 			});
 
+		new Setting(contentEl)
+			.setName("Create Date Range")
+			.addToggle((toggle) => {
+				toggle.setValue(this.createDateRange);
+				toggle.onChange((value) => {
+					this.createDateRange = value;
+					this.endDateSetting.setDisabled(!value);
+				});
+			});
+
 		new Setting(contentEl).setName("Start Date").addText((text) => {
 			text.setPlaceholder("MM/DD/YYYY");
 			text.setValue(this.startDate.toLocaleDateString());
@@ -38,11 +54,21 @@ export class CreateDailyModal extends Modal {
 			});
 		});
 
-		new Setting(contentEl).setName("End Date").addText((text) => {
-			text.setPlaceholder("MM/DD/YYYY");
-			text.setValue(this.endDate.toLocaleDateString());
+		this.endDateSetting = new Setting(contentEl)
+			.setName("End Date")
+			.addText((text) => {
+				text.setPlaceholder("MM/DD/YYYY");
+				text.setValue(this.endDate.toLocaleDateString());
+				text.onChange((value) => {
+					this.endDate = new Date(value);
+				});
+			});
+
+		new Setting(contentEl).setName("Preface").addTextArea((text) => {
+			text.setPlaceholder("Preface");
+			text.setValue(this.preface);
 			text.onChange((value) => {
-				this.endDate = new Date(value);
+				this.preface = value;
 			});
 		});
 
@@ -88,16 +114,25 @@ export class CreateDailyModal extends Modal {
 	async createDailies() {
 		let scrapbookDailyCreator = new ScrapbookDailyCreator(this.plugin);
 
+		if (!this.createDateRange) {
+			this.endDate = new Date(this.startDate);
+		}
+
+		let limit = 100;
+
 		// Create dailies for each day in the range
 		let currentDate = this.startDate;
 		let pullFocus = true;
-		while (currentDate <= this.endDate) {
+		while (currentDate <= this.endDate && limit-- > 0) {
 			let dateCopy = new Date(currentDate);
+
 			scrapbookDailyCreator.createDailyScrapbook(
 				dateCopy,
+				this.preface,
 				this.pullImages,
 				pullFocus
 			);
+
 			pullFocus = false;
 			currentDate.setDate(currentDate.getDate() + 1);
 		}
