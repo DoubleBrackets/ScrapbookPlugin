@@ -1,6 +1,22 @@
-import { Notice, Plugin, TFile, Vault, WorkspaceLeaf, Modal } from "obsidian";
+import {
+	Notice,
+	Plugin,
+	TFile,
+	Vault,
+	WorkspaceLeaf,
+	Modal,
+	requestUrl,
+} from "obsidian";
 import ScrapbookPlugin from "src/main";
-import { toMonthName } from "src/utils";
+import { toMonthName } from "src/lib/utils";
+import axios from "axios";
+import {
+	GooglePhotosDate,
+	GooglePhotosDateFilter,
+	GooglePhotosSearchParams,
+	dateToGoogleDateFilter,
+} from "src/photos-api/photosapi";
+import { log } from "console";
 
 export default class CreateDailyScrapbook {
 	private plugin: ScrapbookPlugin;
@@ -12,18 +28,6 @@ export default class CreateDailyScrapbook {
 		const ribbonIconEl = plugin.addRibbonIcon(
 			"camera",
 			"Create Daily Scrapbook",
-			(evt: MouseEvent) => {
-				try {
-					this.createDailyScrapbook();
-				} catch (e) {
-					new Notice("Error creating daily note: " + e);
-				}
-			}
-		);
-
-		const ribbonIconEl2 = plugin.addRibbonIcon(
-			"camera",
-			"Create Daily Scrapbook2",
 			(evt: MouseEvent) => {
 				try {
 					this.createDailyScrapbook(true);
@@ -82,7 +86,32 @@ export default class CreateDailyScrapbook {
 		}
 	}
 
-	async pullImagesFromPhotos(vault: Vault, directory: string) {}
+	async pullImagesFromPhotos(vault: Vault, directory: string) {
+		let photosApi = this.plugin.photosApi;
+		let dateFilter: GooglePhotosDateFilter = {
+			dates: [dateToGoogleDateFilter(new Date())],
+		};
+
+		let searchParams: GooglePhotosSearchParams = {
+			filters: { dateFilter },
+		};
+		let localSearchParams = Object.assign({}, searchParams);
+		let photos = await photosApi.mediaItemsSearch(localSearchParams);
+
+		console.log(photos);
+
+		for (let mediaItem of photos.mediaItems) {
+			let mediaUrl = mediaItem.baseUrl;
+
+			let mediaResponse = await requestUrl({ url: mediaUrl });
+
+			let mediaBlob = mediaResponse.arrayBuffer;
+			let mediaFileName = mediaItem.filename;
+			let mediaFilePath = `${directory}/${mediaFileName}`;
+
+			await vault.createBinary(mediaFilePath, mediaBlob);
+		}
+	}
 
 	async createScrapbookDirectory(vault: Vault, path: string) {
 		if (vault.getFolderByPath(path) === null) {
