@@ -6,6 +6,7 @@ import {
 	WorkspaceLeaf,
 	Modal,
 	requestUrl,
+	TAbstractFile,
 } from "obsidian";
 import ScrapbookPlugin from "src/main";
 import { toDateProperty, toMonthName } from "src/lib/dateformatter";
@@ -16,7 +17,7 @@ import {
 	GooglePhotosSearchParams,
 	dateToGoogleDateFilter,
 } from "src/photos-api/photosapi";
-import { log } from "console";
+import { dir, log } from "console";
 import {
 	getMediaArtifactName,
 	getScrapbookDailyDirectoryPath,
@@ -38,6 +39,7 @@ export default class ScrapbookDailyCreator {
 		date: Date,
 		preface: string,
 		pullImages: boolean = false,
+		createNote: boolean = true,
 		pullFocus: boolean = false
 	) {
 		let vault: Vault = this.plugin.app.vault;
@@ -45,6 +47,32 @@ export default class ScrapbookDailyCreator {
 
 		await this.createScrapbookDirectory(vault, scrapbookDirectory);
 
+
+		let mdFilePath = getScrapbookDailyNotePath(
+			this.plugin.options.dailyNoteNamePrefix,
+			date
+		);
+
+		if (createNote) {
+			await this.createDailyScrapNote(vault, date, preface, mdFilePath);
+			if (pullFocus) {
+				this.createLeafForDaily(date, vault, mdFilePath);
+			}
+		}
+
+		if (pullImages) {
+			await this.pullImagesFromPhotos(date, vault, scrapbookDirectory);
+		}
+
+		// If the directory is empty, delete it
+		let directory = vault.getFolderByPath(scrapbookDirectory);
+		if (directory && directory.children.length === 0) {
+			console.log("Deleting empty directory: " + scrapbookDirectory);
+			await vault.trash(directory as TAbstractFile, true);
+		}
+	}
+
+	async createDailyScrapNote(vault: Vault, date: Date, preface: string, mdFilePath: string) {
 		let templatePath = this.plugin.options.dailyNoteTemplate + ".md";
 		let templateText = await this.getDailyJournalTemplateText(
 			vault,
@@ -57,25 +85,11 @@ export default class ScrapbookDailyCreator {
 			date
 		);
 
-		let mdFilePath = getScrapbookDailyNotePath(
-			this.plugin.options.dailyNoteNamePrefix,
-			date
-		);
-
 		this.createScrapbookMarkdownFile(
 			vault,
 			processedTemplateText,
 			mdFilePath
 		);
-
-		if (pullImages) {
-
-			this.pullImagesFromPhotos(date, vault, scrapbookDirectory);
-		}
-
-		if (pullFocus) {
-			this.createLeafForDaily(date, vault, mdFilePath);
-		}
 	}
 
 	async createLeafForDaily(date: Date, vault: Vault, filepath: string) {

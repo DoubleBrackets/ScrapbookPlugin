@@ -10,6 +10,7 @@ export class CreateDailyModal extends Modal {
 
 	// Creation wizard settings
 	pullImages: boolean = true;
+	createNote: boolean = true;
 	startDate: Date = new Date();
 	endDate: Date = new Date();
 	createDateRange: boolean = false;
@@ -33,6 +34,15 @@ export class CreateDailyModal extends Modal {
 				toggle.setValue(this.pullImages);
 				toggle.onChange((value) => {
 					this.pullImages = value;
+				});
+			});
+
+		new Setting(contentEl)
+			.setName("Create Daily Note")
+			.addToggle((toggle) => {
+				toggle.setValue(this.createNote);
+				toggle.onChange((value) => {
+					this.createNote = value;
 				});
 			});
 
@@ -97,7 +107,7 @@ export class CreateDailyModal extends Modal {
 			new Notice("Invalid end date");
 			return;
 		}
-		if (this.startDate > this.endDate) {
+		if (this.startDate > this.endDate && this.createDateRange) {
 			new Notice("Start date must be before end date");
 			return;
 		}
@@ -130,6 +140,7 @@ export class CreateDailyModal extends Modal {
 				dateCopy,
 				this.preface,
 				this.pullImages,
+				this.createNote,
 				pullFocus
 			);
 
