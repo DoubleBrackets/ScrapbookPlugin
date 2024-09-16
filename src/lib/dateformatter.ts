@@ -50,3 +50,8 @@ export function toDateProperty(date: Date): string {
 
 	return text;
 }
+
+export function getDayOfWeekAbbrev(date: Date): string {
+	const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+	return days[date.getDay()];
+}

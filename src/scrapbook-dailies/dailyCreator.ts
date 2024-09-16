@@ -110,7 +110,9 @@ export default class ScrapbookDailyCreator {
 
 		let searchParams: GooglePhotosSearchParams = {
 			filters: { dateFilter },
+			pageSize: 100,
 		};
+
 		let localSearchParams = Object.assign({}, searchParams);
 		let photos = await photosApi.mediaItemsSearch(localSearchParams);
 
@@ -119,10 +121,27 @@ export default class ScrapbookDailyCreator {
 			return;
 		}
 
+		new Notice("Found " + photos.mediaItems.length + " photos for " + date.toDateString());
+
+		// Reverse the order of the photos
+		photos.mediaItems = photos.mediaItems.reverse();
+
 		let index = 0;
 		for (let mediaItem of photos.mediaItems) {
 			let mediaUrl = mediaItem.baseUrl;
 
+			let mediaFileName = getMediaArtifactName(
+				mediaItem.filename,
+				mediaItem.mimeType.split("/")[0],
+				index.toString()
+			);
+			let mediaFilePath = `${directory}/${mediaFileName}`;
+
+			if (vault.getAbstractFileByPath(mediaFilePath) !== null) {
+				console.log("Skipping existing media: " + mediaFilePath);
+				index++;
+				continue;
+			}
 
 			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
 			if (mediaItem.mimeType.startsWith("video")) {
@@ -139,12 +158,7 @@ export default class ScrapbookDailyCreator {
 			let mediaResponse = await requestUrl({ url: mediaUrl });
 
 			let mediaBlob = mediaResponse.arrayBuffer;
-			let mediaFileName = getMediaArtifactName(
-				mediaItem.filename,
-				mediaItem.mimeType.split("/")[0],
-				index.toString()
-			);
-			let mediaFilePath = `${directory}/${mediaFileName}`;
+
 
 			await vault.createBinary(mediaFilePath, mediaBlob);
 			index++;

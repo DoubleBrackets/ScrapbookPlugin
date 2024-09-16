@@ -1,4 +1,4 @@
-import { toDateProperty, toMonthName } from "./dateformatter";
+import { getDayOfWeekAbbrev, toDateProperty, toMonthName } from "./dateformatter";
 
 /**
  * Opinionated scrapbook daily directory path
@@ -13,7 +13,7 @@ export function getScrapbookDailyDirectoryPath(date: Date): string {
 	let monthName = toMonthName(month - 1);
 	let datePrefix = toDateProperty(date);
 
-	let scrapbookDirectory = `Scrapbook/${year}/${month} ${monthName}/${datePrefix} Scrap Day`;
+	let scrapbookDirectory = `Scrapbook/${year}/${month} ${monthName}/${datePrefix} (${getDayOfWeekAbbrev(date)}) Scrap Day`;
 
 	return scrapbookDirectory;
 }
@@ -37,5 +37,5 @@ export function getMediaArtifactName(
 	index: string
 ): string {
 	let extension = defaultName.split(".").last();
-	return `scrap-${fileType}-${index}.${extension}`;
+	return `${index}-scrap-${fileType}.${extension}`;
 }

@@ -2,11 +2,16 @@ import ScrapbookPlugin from "src/main";
 import * as http from "http";
 import { Platform, Notice } from "obsidian";
 
+export const onAuthEvent = "authEvent";
+export const onClearAuthEvent = "onAuthEvent";
+
 // Need to create a local http server to handle the OAuth2 redirect
 export default class OAuth2 {
 	plugin: ScrapbookPlugin;
 	redirectUrl: string;
 	httpServer: http.Server;
+
+	public eventTarget = new EventTarget();
 
 	constructor(plugin: ScrapbookPlugin) {
 		this.plugin = plugin;
@@ -24,7 +29,7 @@ export default class OAuth2 {
 
 	isAuthenticated(): boolean {
 		const s = this.plugin.options;
-		return Boolean(s.accessToken && Date.now() < s.expires);
+		return Boolean(s.accessToken !== "" && Date.now() < s.expires);
 	}
 
 	async authenticate(): Promise<boolean> {
@@ -47,6 +52,7 @@ export default class OAuth2 {
 				})
 			) {
 				// Successfully refreshed our access
+				this.eventTarget.dispatchEvent(new Event(onAuthEvent));
 				return true;
 			} else {
 				// Refresh token is no longer valid
@@ -74,6 +80,7 @@ export default class OAuth2 {
 
 		// Check to see if there is already a server running
 		if (!this.httpServer) {
+			console.log("Starting local auth http server");
 			this.httpServer = http
 				.createServer(async (req, res) => {
 					this.handleAuthResponse(req, res);
@@ -182,9 +189,17 @@ export default class OAuth2 {
 
 			await this.plugin.writeOptions();
 
+			this.eventTarget.dispatchEvent(new Event(onAuthEvent));
+
 			return true;
 		} else {
 			return false;
 		}
+	}
+
+	clearAuth() {
+		this.plugin.options.accessToken = "";
+		this.plugin.options.refreshToken = "";
+		this.eventTarget.dispatchEvent(new Event(onClearAuthEvent));
 	}
 }

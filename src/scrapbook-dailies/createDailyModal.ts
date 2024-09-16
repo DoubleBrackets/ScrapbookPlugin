@@ -1,6 +1,7 @@
-import { App, Modal, Notice, Setting } from "obsidian";
+import { App, ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import ScrapbookPlugin from "src/main";
 import ScrapbookDailyCreator from "./dailyCreator";
+import { onAuthEvent, onClearAuthEvent } from "src/photos-api/oauth";
 
 /**
  * Modal wizard for creating a scrapbook daily and pulling images from Google Photos
@@ -18,6 +19,10 @@ export class CreateDailyModal extends Modal {
 
 	// Elements
 	private endDateSetting: Setting;
+	private clearAuthButton: ButtonComponent;
+
+	// Listeners
+	updateClearAuthButtonHandler = this.updateClearAuthButton.bind(this);
 
 	constructor(app: App, plugin: ScrapbookPlugin) {
 		super(app);
@@ -89,10 +94,26 @@ export class CreateDailyModal extends Modal {
 				.onClick(() => {
 					this.onSubmit();
 				})
-		);
+		).addButton((btn) => {
+			btn
+				.setButtonText("Clear Auth")
+				.setCta()
+				.setDisabled(!this.plugin.oauth.isAuthenticated())
+				.onClick(() => {
+					this.clearAuth();
+				})
+
+			this.clearAuthButton = btn;
+		});
+
+		this.plugin.oauth.eventTarget.addEventListener(onAuthEvent, this.updateClearAuthButtonHandler);
+		this.plugin.oauth.eventTarget.addEventListener(onClearAuthEvent, this.updateClearAuthButtonHandler);
 	}
 
 	onClose() {
+		this.plugin.oauth.eventTarget.removeEventListener(onAuthEvent, this.updateClearAuthButtonHandler);
+		this.plugin.oauth.eventTarget.removeEventListener(onClearAuthEvent, this.updateClearAuthButtonHandler);
+
 		let { contentEl } = this;
 		contentEl.empty();
 	}
@@ -132,7 +153,7 @@ export class CreateDailyModal extends Modal {
 
 		// Create dailies for each day in the range
 		let currentDate = this.startDate;
-		let pullFocus = true;
+		let pullFocus = false;
 		while (currentDate <= this.endDate && limit-- > 0) {
 			let dateCopy = new Date(currentDate);
 
@@ -147,5 +168,15 @@ export class CreateDailyModal extends Modal {
 			pullFocus = false;
 			currentDate.setDate(currentDate.getDate() + 1);
 		}
+	}
+
+	clearAuth() {
+		new Notice("Clearing google photos auth");
+		this.plugin.oauth.clearAuth();
+	}
+
+	updateClearAuthButton() {
+		console.log("Updating clear auth button");
+		this.clearAuthButton.setDisabled(!this.plugin.oauth.isAuthenticated());
 	}
 }

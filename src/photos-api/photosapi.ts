@@ -21,6 +21,7 @@ export type GooglePhotosSearchParams = {
 	filters?: {
 		dateFilter?: GooglePhotosDateFilter;
 	};
+	pageSize?: number;
 };
 
 export type GooglePhotosAlbum = {
