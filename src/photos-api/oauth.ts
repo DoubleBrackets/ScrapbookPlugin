@@ -36,18 +36,23 @@ export default class OAuth2 {
 		console.log("Attempting to authenticate");
 
 		// Needs to match the redirect URL in the Google Cloud Console
+		// Redirects to local server to handle the OAuth2 response
 		this.redirectUrl = `http://localhost:${this.plugin.options.port}/google-photos`;
 
-		const s = this.plugin.options;
+		console.log("Redirect URL: " + this.redirectUrl);
+
+		const options = this.plugin.options;
+
+		console.log("Refresh Token: " + options.refreshToken);
 
 		// First attempt to use a stored refresh token
-		if (s.refreshToken) {
+		if (options.refreshToken) {
 			console.log("Google Photos: attempting refresh token");
 			if (
 				await this.getAccessToken({
-					refresh_token: s.refreshToken,
-					client_id: s.clientId,
-					client_secret: s.clientSecret,
+					refresh_token: options.refreshToken,
+					client_id: options.clientId,
+					client_secret: options.clientSecret,
 					grant_type: "refresh_token",
 				})
 			) {
@@ -56,7 +61,8 @@ export default class OAuth2 {
 				return true;
 			} else {
 				// Refresh token is no longer valid
-				s.refreshToken = "";
+				console.log("Google Photos: refresh token invalid");
+				options.refreshToken = "";
 			}
 		}
 
@@ -179,6 +185,8 @@ export default class OAuth2 {
 
 			this.plugin.options.accessToken = tokenData.access_token;
 
+			console.log("Received Refresh Token: " + tokenData.refresh_token);
+
 			if (tokenData.refresh_token) {
 				this.plugin.options.refreshToken = tokenData.refresh_token;
 			}
@@ -193,11 +201,13 @@ export default class OAuth2 {
 
 			return true;
 		} else {
+			console.error("Failed to get access token from refresh token: " + res.statusText);
 			return false;
 		}
 	}
 
 	clearAuth() {
+		console.log("Clearing Google Photos auth");
 		this.plugin.options.accessToken = "";
 		this.plugin.options.refreshToken = "";
 		this.eventTarget.dispatchEvent(new Event(onClearAuthEvent));
