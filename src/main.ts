@@ -1,20 +1,16 @@
 import { Plugin, Notice, PluginSettingTab, App, Setting } from "obsidian";
 import { DEFAULT_SETTINGS, ISettings, ScrapbookSettingsTab } from "./settings";
-import ScrapbookDailyCreator from "./scrapbook-dailies/dailyCreator";
+import ScrapbookDailyCreationFlow from "./scrapbook-dailies/dailyCreationFlow";
 import OAuth from "./photos-api/oauth";
-import PhotosApi from "./photos-api/photosapi";
 import { CreateDailyModal } from "./scrapbook-dailies/createDailyModal";
-import { convertOldJournal } from "./converter";
+import { convertOldJournal } from "./compatability/converter";
 
 export default class ScrapbookPlugin extends Plugin {
 	public options: ISettings;
-
-	private createDailyNote: ScrapbookDailyCreator;
 	public oauth: OAuth;
-	public photosApi: PhotosApi;
 
 	async onload() {
-		console.log("loading Scrapbook pluginss");
+		console.log("Loading My Scrapbook Plugin");
 
 		await this.setupOptions();
 
@@ -30,7 +26,6 @@ export default class ScrapbookPlugin extends Plugin {
 
 	async setupPhotosApi() {
 		// Setup API
-		this.photosApi = new PhotosApi(this);
 		this.oauth = new OAuth(this);
 
 		// Protocol handler (for redirecting back to Obsidian after Google OAuth)
@@ -50,13 +45,14 @@ export default class ScrapbookPlugin extends Plugin {
 	}
 
 	setupPluginFeatures() {
-		// Icon for opening the dailies creation modal
+		// Icon for opening the main creation modal
 		const ribbonIconEl = this.addRibbonIcon(
 			"camera",
 			"Create Daily Scrapbook",
 			(evt: MouseEvent) => {
 				try {
-					new CreateDailyModal(this.app, this).open();
+					let creationFlow = new ScrapbookDailyCreationFlow(this);
+					creationFlow.progressCreationFlow();
 				} catch (e) {
 					new Notice("Error creating daily note: " + e);
 				}

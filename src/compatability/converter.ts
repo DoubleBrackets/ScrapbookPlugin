@@ -1,9 +1,10 @@
 import {
     getScrapbookDailyDirectoryPath,
     getScrapbookDailyNotePath,
-} from "./lib/scrapbookPaths";
-import ScrapbookPlugin from "./main";
+} from "../lib/scrapbookPaths";
+import ScrapbookPlugin from "../main";
 
+// Convert old journal naming format to new daily note format
 export async function convertOldJournal(plugin: ScrapbookPlugin) {
     let vault = plugin.app.vault;
     let mdFiles = vault.getMarkdownFiles();

@@ -5,10 +5,11 @@ import { Platform, Notice } from "obsidian";
 export const onAuthEvent = "authEvent";
 export const onClearAuthEvent = "onAuthEvent";
 
-// Need to create a local http server to handle the OAuth2 redirect
+/**
+ *  OAuth2.0 Implicit Grant Flow. Creates a local server to handle the OAuth2 redirect
+ */
 export default class OAuth2 {
 	plugin: ScrapbookPlugin;
-	redirectUrl: string;
 	httpServer: http.Server;
 
 	public eventTarget = new EventTarget();
@@ -28,31 +29,29 @@ export default class OAuth2 {
 	}
 
 	isAuthenticated(): boolean {
-		const s = this.plugin.options;
-		return Boolean(s.accessToken !== "" && Date.now() < s.expires);
+		const options = this.plugin.options;
+		return Boolean(options.oauthAccessToken !== "" && Date.now() < options.oauthTokenExpirey);
 	}
 
 	async authenticate(): Promise<boolean> {
-		console.log("Attempting to authenticate");
-
-		// Needs to match the redirect URL in the Google Cloud Console
-		// Redirects to local server to handle the OAuth2 response
-		this.redirectUrl = `http://localhost:${this.plugin.options.port}/google-photos`;
-
-		console.log("Redirect URL: " + this.redirectUrl);
 
 		const options = this.plugin.options;
 
-		console.log("Refresh Token: " + options.refreshToken);
+		console.log("Attempting to authenticate");
+
+		console.log("Redirect URL: " + options.oAuthCallbackUrl);
+
+
+		console.log("Refresh Token: " + options.oauthRefreshToken);
 
 		// First attempt to use a stored refresh token
-		if (options.refreshToken) {
+		if (options.oauthRefreshToken) {
 			console.log("Google Photos: attempting refresh token");
 			if (
 				await this.getAccessToken({
-					refresh_token: options.refreshToken,
-					client_id: options.clientId,
-					client_secret: options.clientSecret,
+					refresh_token: options.oauthRefreshToken,
+					client_id: options.oAuthClientId,
+					client_secret: options.oAuthClientSecret,
 					grant_type: "refresh_token",
 				})
 			) {
@@ -62,7 +61,7 @@ export default class OAuth2 {
 			} else {
 				// Refresh token is no longer valid
 				console.log("Google Photos: refresh token invalid");
-				options.refreshToken = "";
+				options.oauthRefreshToken = "";
 			}
 		}
 
@@ -74,6 +73,10 @@ export default class OAuth2 {
 		return false;
 	}
 
+	/**
+	 * Start the OAuth2.0 flow and setup callback server
+	 * @returns  
+	 */
 	requestPermissions() {
 		if (Platform.isMobile) {
 			// Electron BrowserWindow is not supported on mobile:
@@ -84,21 +87,32 @@ export default class OAuth2 {
 			return;
 		}
 
-		// Check to see if there is already a server running
-		if (!this.httpServer) {
-			console.log("Starting local auth http server");
-			this.httpServer = http
-				.createServer(async (req, res) => {
-					this.handleAuthResponse(req, res);
-				})
-				.listen(this.plugin.options.port, () => {
-					// Start the auth process when the server is ready
-					this.startAuthProcess();
-				});
-		} else {
-			// Start the auth process
-			this.startAuthProcess();
+		if (this.httpServer) {
+			this.httpServer.close();
 		}
+
+		this.httpServer = http
+			.createServer(async (req, res) => {
+				this.handleAuthResponse(req, res);
+			})
+			.listen(this.plugin.options.oAuthPort, () => {
+				// Start the auth process when the server is ready by opening URL in browser
+				let options = this.plugin.options;
+
+				const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+
+				url.search = new URLSearchParams({
+					scope: "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
+					include_granted_scopes: "true",
+					response_type: "code",
+					access_type: "offline",
+					state: "state_parameter_passthrough_value",
+					redirect_uri: options.oAuthCallbackUrl,
+					client_id: options.oAuthClientId,
+				}).toString();
+
+				window.open(url.toString());
+			});
 	}
 
 	/**
@@ -110,14 +124,25 @@ export default class OAuth2 {
 		req: http.IncomingMessage,
 		res: http.ServerResponse
 	) {
+		let options = this.plugin.options;
 		console.log("Handling auth response: " + req.url);
-		if (req && req?.url?.startsWith("/google-photos")) {
+		let isCorrectPath = req && req.url && req.url.startsWith("/auth/google/callback");
+		console.log("Correct path: " + isCorrectPath);
+		if (isCorrectPath) {
 			const code =
-				new URL(this.redirectUrl + (req.url || "")).searchParams.get(
+				new URL(options.oAuthCallbackUrl + (req.url || "")).searchParams.get(
 					"code"
 				) || "";
 
-			if (await this.processCode(code)) {
+			let accessToken = this.getAccessToken({
+				code,
+				client_id: options.oAuthClientId,
+				client_secret: options.oAuthClientSecret,
+				redirect_uri: options.oAuthCallbackUrl,
+				grant_type: "authorization_code",
+			});
+
+			if (await accessToken) {
 				res.end(
 					"Authentication successful! Please return to Obsidian."
 				);
@@ -131,43 +156,14 @@ export default class OAuth2 {
 	}
 
 	/**
-	 * https://developers.google.com/identity/protocols/oauth2/web-server#httprest_1
-	 * Creates a URL and opens it in a new window to start the OAuth2 process
-	 */
-	startAuthProcess() {
-		const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-		url.search = new URLSearchParams({
-			scope: "https://www.googleapis.com/auth/photoslibrary.readonly",
-			include_granted_scopes: "true",
-			response_type: "code",
-			access_type: "offline",
-			state: "state_parameter_passthrough_value",
-			redirect_uri: this.redirectUrl,
-			client_id: this.plugin.options.clientId,
-		}).toString();
-		window.open(url.toString());
-	}
-
-	/**
-	 *
-	 * @param code
-	 * @returns
-	 */
-	async processCode(code: string) {
-		return this.getAccessToken({
-			code,
-			client_id: this.plugin.options.clientId,
-			client_secret: this.plugin.options.clientSecret,
-			redirect_uri: this.redirectUrl,
-			grant_type: "authorization_code",
-		});
-	}
-
-	/**
 	 * Exchange the auth code or a refresh token for an access token
 	 * @param {object} params - An object of URL query parameters
 	 */
 	async getAccessToken(params = {}): Promise<boolean> {
+		let options = this.plugin.options;
+
+		console.log("Getting access token with params: " + JSON.stringify(params));
+
 		const url = new URL("https://oauth2.googleapis.com/token");
 		url.search = new URLSearchParams(params).toString();
 
@@ -183,16 +179,16 @@ export default class OAuth2 {
 
 			console.log("Get Access Token Response: " + tokenData);
 
-			this.plugin.options.accessToken = tokenData.access_token;
+			options.oauthAccessToken = tokenData.access_token;
 
 			console.log("Received Refresh Token: " + tokenData.refresh_token);
 
 			if (tokenData.refresh_token) {
-				this.plugin.options.refreshToken = tokenData.refresh_token;
+				options.oauthRefreshToken = tokenData.refresh_token;
 			}
 
 			let tokenDurationSeconds = tokenData.expires_in;
-			this.plugin.options.expires =
+			options.oauthTokenExpirey =
 				Date.now() + tokenDurationSeconds * 1000;
 
 			await this.plugin.writeOptions();
@@ -207,9 +203,10 @@ export default class OAuth2 {
 	}
 
 	clearAuth() {
+		let options = this.plugin.options
 		console.log("Clearing Google Photos auth");
-		this.plugin.options.accessToken = "";
-		this.plugin.options.refreshToken = "";
+		options.oauthAccessToken = "";
+		options.oauthRefreshToken = "";
 		this.eventTarget.dispatchEvent(new Event(onClearAuthEvent));
 	}
 }

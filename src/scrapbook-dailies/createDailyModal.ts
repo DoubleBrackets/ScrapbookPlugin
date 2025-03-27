@@ -1,13 +1,15 @@
 import { App, ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import ScrapbookPlugin from "src/main";
-import ScrapbookDailyCreator from "./dailyCreator";
+import ScrapbookDailyCreationFlow from "./dailyCreationFlow";
 import { onAuthEvent, onClearAuthEvent } from "src/photos-api/oauth";
+import { log } from "console";
 
 /**
- * Modal wizard for creating a scrapbook daily and pulling images from Google Photos
+ * Primary modal wizard for creating a scrapbook daily
  */
 export class CreateDailyModal extends Modal {
 	plugin: ScrapbookPlugin;
+	submitCallback: () => void;
 
 	// Creation wizard settings
 	pullImages: boolean = true;
@@ -24,9 +26,10 @@ export class CreateDailyModal extends Modal {
 	// Listeners
 	updateClearAuthButtonHandler = this.updateClearAuthButton.bind(this);
 
-	constructor(app: App, plugin: ScrapbookPlugin) {
+	constructor(app: App, plugin: ScrapbookPlugin, submitCallback: () => void) {
 		super(app);
 		this.plugin = plugin;
+		this.submitCallback = submitCallback;
 	}
 
 	onOpen() {
@@ -119,6 +122,8 @@ export class CreateDailyModal extends Modal {
 	}
 
 	onSubmit() {
+		console.log("Submitting daily creation");
+
 		// Validate date format
 		if (isNaN(this.startDate.getTime())) {
 			new Notice("Invalid start date");
@@ -134,42 +139,12 @@ export class CreateDailyModal extends Modal {
 		}
 
 		if (this.plugin.oauth.isAuthenticated()) {
-			this.close();
-			this.createDailies();
+			this.submitCallback();
 		} else {
 			new Notice("Please authenticate with Google Photos first");
 			this.plugin.oauth.authenticateIfNeeded();
 		}
 	}
-
-	async createDailies() {
-		let scrapbookDailyCreator = new ScrapbookDailyCreator(this.plugin);
-
-		if (!this.createDateRange) {
-			this.endDate = new Date(this.startDate);
-		}
-
-		let limit = 1000;
-
-		// Create dailies for each day in the range
-		let currentDate = this.startDate;
-		let pullFocus = false;
-		while (currentDate <= this.endDate && limit-- > 0) {
-			let dateCopy = new Date(currentDate);
-
-			scrapbookDailyCreator.createDailyScrapbook(
-				dateCopy,
-				this.preface,
-				this.pullImages,
-				this.createNote,
-				pullFocus
-			);
-
-			pullFocus = false;
-			currentDate.setDate(currentDate.getDate() + 1);
-		}
-	}
-
 	clearAuth() {
 		new Notice("Clearing google photos auth");
 		this.plugin.oauth.clearAuth();
