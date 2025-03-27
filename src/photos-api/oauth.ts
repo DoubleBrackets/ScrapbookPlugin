@@ -5,8 +5,9 @@ import { Platform, Notice } from "obsidian";
 export const onAuthEvent = "authEvent";
 export const onClearAuthEvent = "onAuthEvent";
 
-// Need to create a local http server to handle the OAuth2 redirect
-// Using OAuth2.0 implicit grant flow (key is in redirect URL)
+/**
+ *  OAuth2.0 Implicit Grant Flow. Creates a local server to handle the OAuth2 redirect
+ */
 export default class OAuth2 {
 	plugin: ScrapbookPlugin;
 	httpServer: http.Server;
@@ -72,6 +73,10 @@ export default class OAuth2 {
 		return false;
 	}
 
+	/**
+	 * Start the OAuth2.0 flow and setup callback server
+	 * @returns  
+	 */
 	requestPermissions() {
 		if (Platform.isMobile) {
 			// Electron BrowserWindow is not supported on mobile:
@@ -82,21 +87,32 @@ export default class OAuth2 {
 			return;
 		}
 
-		// Check to see if there is already a server running
-		if (!this.httpServer) {
-			console.log("Starting local auth http server");
-			this.httpServer = http
-				.createServer(async (req, res) => {
-					this.handleAuthResponse(req, res);
-				})
-				.listen(this.plugin.options.oAuthPort, () => {
-					// Start the auth process when the server is ready
-					this.startAuthProcess();
-				});
-		} else {
-			// Start the auth process
-			this.startAuthProcess();
+		if (this.httpServer) {
+			this.httpServer.close();
 		}
+
+		this.httpServer = http
+			.createServer(async (req, res) => {
+				this.handleAuthResponse(req, res);
+			})
+			.listen(this.plugin.options.oAuthPort, () => {
+				// Start the auth process when the server is ready by opening URL in browser
+				let options = this.plugin.options;
+
+				const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+
+				url.search = new URLSearchParams({
+					scope: "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
+					include_granted_scopes: "true",
+					response_type: "code",
+					access_type: "offline",
+					state: "state_parameter_passthrough_value",
+					redirect_uri: options.oAuthCallbackUrl,
+					client_id: options.oAuthClientId,
+				}).toString();
+
+				window.open(url.toString());
+			});
 	}
 
 	/**
@@ -118,7 +134,15 @@ export default class OAuth2 {
 					"code"
 				) || "";
 
-			if (await this.processCode(code)) {
+			let accessToken = this.getAccessToken({
+				code,
+				client_id: options.oAuthClientId,
+				client_secret: options.oAuthClientSecret,
+				redirect_uri: options.oAuthCallbackUrl,
+				grant_type: "authorization_code",
+			});
+
+			if (await accessToken) {
 				res.end(
 					"Authentication successful! Please return to Obsidian."
 				);
@@ -132,46 +156,11 @@ export default class OAuth2 {
 	}
 
 	/**
-	 * https://developers.google.com/identity/protocols/oauth2/web-server#httprest_1
-	 * Creates a URL and opens it in a new window to start the OAuth2 process (this is making the request to Google)
-	 */
-	startAuthProcess() {
-		let options = this.plugin.options;
-		const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-		url.search = new URLSearchParams({
-			scope: "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
-			include_granted_scopes: "true",
-			response_type: "code",
-			access_type: "offline",
-			state: "state_parameter_passthrough_value",
-			redirect_uri: options.oAuthCallbackUrl,
-			client_id: options.oAuthClientId,
-		}).toString();
-		window.open(url.toString());
-	}
-
-	/**
-	 * Process the code from the OAuth2 response
-	 * @param code
-	 * @returns
-	 */
-	async processCode(code: string) {
-		let options = this.plugin.options;
-		return this.getAccessToken({
-			code,
-			client_id: options.oAuthClientId,
-			client_secret: options.oAuthClientSecret,
-			redirect_uri: options.oAuthCallbackUrl,
-			grant_type: "authorization_code",
-		});
-	}
-
-	/**
 	 * Exchange the auth code or a refresh token for an access token
 	 * @param {object} params - An object of URL query parameters
 	 */
 	async getAccessToken(params = {}): Promise<boolean> {
-		let options = this.plugin.options; 
+		let options = this.plugin.options;
 
 		console.log("Getting access token with params: " + JSON.stringify(params));
 
