@@ -9,13 +9,17 @@ export interface ISettings {
 	dailyDateCreatedPropertyName: string;
 	prefacePropertyName: string;
 
-	// Photos API
-	clientId: string;
-	clientSecret: string;
-	accessToken: string;
-	refreshToken: string;
-	expires: number;
-	port: number;
+	// Google API Oauth
+	oAuthClientId: string;
+	oAuthClientSecret: string;
+	
+	// oAuth server
+	oAuthPort: number;
+	oAuthCallbackUrl: string;
+
+	oauthAccessToken: string;
+	oauthRefreshToken: string;
+	oauthTokenExpirey: number;
 }
 
 export const DEFAULT_SETTINGS: ISettings = {
@@ -26,13 +30,15 @@ export const DEFAULT_SETTINGS: ISettings = {
 	dailyDateCreatedPropertyName: "date-created",
 	prefacePropertyName: "preface",
 
-	clientId: "",
-	clientSecret: "",
-	accessToken: "",
-	refreshToken: "",
-	expires: 0,
-	port: 51894,
+	oAuthClientId: "",
+	oAuthClientSecret: "",
+	oAuthPort: 51894,
+	oAuthCallbackUrl: "http://localhost:51894/auth/google/callback",
+	oauthAccessToken: "",
+	oauthRefreshToken: "",
+	oauthTokenExpirey: 0,
 };
+
 
 export class ScrapbookSettingsTab extends PluginSettingTab {
 	plugin: ScrapbookPlugin;
@@ -119,9 +125,9 @@ export class ScrapbookSettingsTab extends PluginSettingTab {
 			.setDesc("Client ID for Photos API")
 			.addTextArea((text) => {
 				text.setPlaceholder("Client ID");
-				text.setValue(this.plugin.options.clientId);
+				text.setValue(this.plugin.options.oAuthClientId);
 				text.onChange(async (value) => {
-					this.plugin.options.clientId = value;
+					this.plugin.options.oAuthClientId = value;
 					await this.plugin.writeOptions();
 				});
 			});
@@ -131,9 +137,9 @@ export class ScrapbookSettingsTab extends PluginSettingTab {
 			.setDesc("Client Secret for Photos API")
 			.addTextArea((text) => {
 				text.setPlaceholder("Client Secret");
-				text.setValue(this.plugin.options.clientSecret);
+				text.setValue(this.plugin.options.oAuthClientSecret);
 				text.onChange(async (value) => {
-					this.plugin.options.clientSecret = value;
+					this.plugin.options.oAuthClientSecret = value;
 					await this.plugin.writeOptions();
 				});
 			});
@@ -143,9 +149,9 @@ export class ScrapbookSettingsTab extends PluginSettingTab {
 			.setDesc("Local http server port for OAuth redirect")
 			.addText((text) => {
 				text.setPlaceholder("Port number");
-				text.setValue(this.plugin.options.port.toString());
+				text.setValue(this.plugin.options.oAuthPort.toString());
 				text.onChange(async (value) => {
-					this.plugin.options.port = parseInt(value);
+					this.plugin.options.oAuthPort = parseInt(value);
 					await this.plugin.writeOptions();
 				});
 			});
